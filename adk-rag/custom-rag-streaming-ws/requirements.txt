@@ -1,3 +1,0 @@
-# ADK and Gemini dependencies
-google-adk==1.18.0
-
