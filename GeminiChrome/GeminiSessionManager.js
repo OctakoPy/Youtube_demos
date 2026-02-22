@@ -146,6 +146,28 @@ export class GeminiSessionManager {
     }
   }
 
+  async sendTextMessage(text) {
+    if (this.session && this.isSetupComplete) {
+      try {
+        this.session.sendRealtimeInput({ text: text });
+        console.log('[GeminiSessionManager] Sent text to Gemini:', text.substring(0, 100));
+      } catch (e) {
+        console.error('[GeminiSessionManager] Error sending text:', e);
+      }
+    }
+  }
+
+  async sendSystemPrompt(systemPrompt) {
+    if (this.session && this.isSetupComplete) {
+      try {
+        this.session.sendRealtimeInput({ text: systemPrompt });
+        console.log('[GeminiSessionManager] Sent system prompt to Gemini');
+      } catch (e) {
+        console.error('[GeminiSessionManager] Error sending system prompt:', e);
+      }
+    }
+  }
+
   close() {
     if (this.session) {
       try {

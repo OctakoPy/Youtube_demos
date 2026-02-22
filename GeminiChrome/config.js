@@ -9,7 +9,7 @@ export const AUDIO_CONFIG = {
 };
 
 export const CAPTURE_CONFIG = {
-  IMAGE_SEND_INTERVAL_MS: 5000, // Send image every 5 seconds
+  IMAGE_SEND_INTERVAL_MS: 3000, // Send image every 3 seconds
   AUTO_SCREENSHOT_INTERVAL_MS: 3000, // Auto-capture every 3 seconds
   IMAGE_QUALITY: 0.8 // JPEG compression quality
 };

@@ -98,20 +98,32 @@ function createSidePanelButton() {
             button.style.pointerEvents = 'auto';
         }, 500);
         
-        chrome.runtime.sendMessage({ action: "toggleSidePanel" }, (response) => {
-            if (chrome.runtime.lastError) {
-                console.error("Error sending message from content script:", chrome.runtime.lastError.message);
-                // Re-enable button on error
-                button.style.pointerEvents = 'auto';
-            } else {
-                console.log("Response from background script:", response);
-                
-                // Update button appearance based on side panel state
-                if (response && typeof response.isOpen === 'boolean') {
-                    updateToggleButtonState(response.isOpen);
+        // Check if extension context is still valid
+        if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.sendMessage) {
+            console.warn("Extension context invalidated - cannot toggle side panel");
+            button.style.pointerEvents = 'auto';
+            return;
+        }
+        
+        try {
+            chrome.runtime.sendMessage({ action: "toggleSidePanel" }, (response) => {
+                if (chrome.runtime && chrome.runtime.lastError) {
+                    console.error("Error sending message from content script:", chrome.runtime.lastError.message);
+                    // Re-enable button on error
+                    button.style.pointerEvents = 'auto';
+                } else {
+                    console.log("Response from background script:", response);
+                    
+                    // Update button appearance based on side panel state
+                    if (response && typeof response.isOpen === 'boolean') {
+                        updateToggleButtonState(response.isOpen);
+                    }
                 }
-            }
-        });
+            });
+        } catch (error) {
+            console.warn("Failed to send message - extension context invalid");
+            button.style.pointerEvents = 'auto';
+        }
     }
 
     button.addEventListener('click', handleActivation);
@@ -222,18 +234,28 @@ function injectMicrophonePermissionIframe() {
         return;
     }
     
+    // Check if extension context is still valid
+    if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.getURL) {
+        console.warn('[Content] Extension context invalidated - cannot inject microphone iframe');
+        return;
+    }
+    
     console.log('[Content] Injecting microphone permission iframe');
     
-    const iframe = document.createElement('iframe');
-    iframe.setAttribute('hidden', 'hidden');
-    iframe.setAttribute('id', 'microphonePermissionIframe');
-    iframe.setAttribute('allow', 'microphone');
-    iframe.style.display = 'none';
-    iframe.src = chrome.runtime.getURL('permission.html');
-    
-    document.body.appendChild(iframe);
-    
-    console.log('[Content] Microphone permission iframe injected');
+    try {
+        const iframe = document.createElement('iframe');
+        iframe.setAttribute('hidden', 'hidden');
+        iframe.setAttribute('id', 'microphonePermissionIframe');
+        iframe.setAttribute('allow', 'microphone');
+        iframe.style.display = 'none';
+        iframe.src = chrome.runtime.getURL('permission.html');
+        
+        document.body.appendChild(iframe);
+        
+        console.log('[Content] Microphone permission iframe injected');
+    } catch (error) {
+        console.warn('[Content] Failed to inject microphone iframe');
+    }
 }
 
 // Listen for messages from background script
@@ -253,14 +275,95 @@ window.addEventListener('message', (event) => {
     if (event.data.type === 'MICROPHONE_PERMISSION_RESULT') {
         console.log('[Content] Received microphone permission result:', event.data);
         
-        // Forward the result to the background script
-        chrome.runtime.sendMessage({
-            action: 'microphonePermissionResult',
-            success: event.data.success,
-            message: event.data.message,
-            error: event.data.error
-        });
+        // Check if extension context is still valid before attempting to send message
+        if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.sendMessage) {
+            console.warn('[Content] Extension context invalidated - cannot send microphone permission result');
+            return;
+        }
+        
+        // Forward the result to the background script with error handling
+        try {
+            chrome.runtime.sendMessage({
+                action: 'microphonePermissionResult',
+                success: event.data.success,
+                message: event.data.message,
+                error: event.data.error
+            }, (response) => {
+                // Only log errors if callback is executed with valid context
+                if (chrome.runtime && chrome.runtime.lastError) {
+                    console.warn('[Content] Error sending microphone permission:', chrome.runtime.lastError.message);
+                }
+            });
+        } catch (error) {
+            console.warn('[Content] Extension context invalidated, skipping microphone permission result');
+        }
     }
+});
+
+// CSS Injection Management
+const CSSManager = {
+  injectedStyles: new Map(),
+  
+  injectCSS(css, id = 'injected-' + Date.now()) {
+    if (this.injectedStyles.has(id)) {
+      console.log('[CSSManager] CSS with ID already injected:', id);
+      return id;
+    }
+    
+    const styleElement = document.createElement('style');
+    styleElement.id = id;
+    styleElement.textContent = css;
+    document.head.appendChild(styleElement);
+    
+    this.injectedStyles.set(id, styleElement);
+    console.log('[CSSManager] CSS injected with ID:', id);
+    
+    return id;
+  },
+  
+  removeCSS(id) {
+    const styleElement = this.injectedStyles.get(id);
+    if (styleElement) {
+      styleElement.remove();
+      this.injectedStyles.delete(id);
+      console.log('[CSSManager] CSS removed:', id);
+      return true;
+    }
+    return false;
+  },
+  
+  resetAllCSS() {
+    this.injectedStyles.forEach((styleElement) => {
+      styleElement.remove();
+    });
+    this.injectedStyles.clear();
+    console.log('[CSSManager] All injected CSS removed');
+  }
+};
+
+// Listen for CSS injection messages from side panel
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'injectCSS') {
+    console.log('[Content] Received CSS injection request:', request.description);
+    const styleId = CSSManager.injectCSS(request.css, request.id);
+    sendResponse({ success: true, styleId: styleId });
+  } else if (request.action === 'resetCSS') {
+    console.log('[Content] Received CSS reset request');
+    CSSManager.resetAllCSS();
+    sendResponse({ success: true });
+  } else if (request.action === 'getPageHTML') {
+    console.log('[Content] Received page HTML request');
+    // Get the page HTML for context
+    const html = document.documentElement.outerHTML;
+    const title = document.title;
+    const url = window.location.href;
+    sendResponse({ 
+      success: true, 
+      html: html.substring(0, 50000), // Limit to 50KB to avoid context overflow
+      title: title,
+      url: url
+    });
+  }
 });
 
 // Ensure the DOM is ready before trying to append the button

@@ -2,82 +2,448 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Gemini Live Assistant</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Helpful Web Assistant</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="sidepanel.css">
     <script src="gemini-live.js"></script>
+    <style>
+        /* Elderly-friendly styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            background: white;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        
+        /* Header Section */
+        .header {
+            flex-shrink: 0;
+            padding: 30px 25px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        
+        .header p {
+            font-size: 18px;
+            opacity: 0.95;
+            margin: 0;
+        }
+        
+        /* Main Content Area */
+        #mainContent {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: scroll;
+            overflow-x: hidden;
+            padding: 20px;
+            width: 100%;
+        }
+        
+        /* Status Display */
+        #statusSection {
+            background: #f5f5f5;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+            border-left: 5px solid #667eea;
+        }
+        
+        #statusText {
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        #statusSubtitle {
+            font-size: 16px;
+            color: #666;
+            line-height: 1.6;
+        }
+        
+        /* Control Buttons */
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            flex: 1;
+            min-width: 150px;
+            padding: 18px 20px;
+            font-size: 18px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            min-height: 56px;
+        }
+        
+        #startBtn {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        #startBtn:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.3);
+        }
+        
+        #stopBtn {
+            background: #f44336;
+            color: white;
+        }
+        
+        #stopBtn:hover {
+            background: #da190b;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(244, 67, 54, 0.3);
+        }
+        
+        #stopBtn:disabled, #startBtn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        /* Instructions Section */
+        .instructions {
+            background: #e3f2fd;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-left: 5px solid #2196F3;
+        }
+        
+        .instructions h3 {
+            font-size: 20px;
+            color: #1976d2;
+            margin-bottom: 10px;
+        }
+        
+        .instructions ul {
+            list-style: none;
+            font-size: 16px;
+            color: #333;
+            line-height: 1.8;
+        }
+        
+        .instructions li {
+            margin-bottom: 8px;
+            padding-left: 25px;
+            position: relative;
+        }
+        
+        .instructions li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #4CAF50;
+            font-weight: bold;
+        }
+        
+        /* Transcript Section */
+        .transcript-section {
+            flex: 0 0 auto;
+            display: flex;
+            flex-direction: column;
+            margin-top: 20px;
+            min-height: 200px;
+            max-height: 400px;
+        }
+        
+        .transcript-section h3 {
+            flex-shrink: 0;
+            font-size: 20px;
+            color: #333;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+        
+        #transcriptMessages {
+            flex: 1;
+            background: #f9f9f9;
+            border-radius: 8px;
+            padding: 15px;
+            overflow-y: scroll;
+            overflow-x: hidden;
+            border: 2px solid #e0e0e0;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+        
+        .message {
+            margin-bottom: 12px;
+            padding: 12px;
+            border-radius: 6px;
+            word-wrap: break-word;
+        }
+        
+        .message.user {
+            background: #e3f2fd;
+            border-left: 4px solid #2196F3;
+            margin-left: 20px;
+        }
+        
+        .message.assistant {
+            background: #e8f5e9;
+            border-left: 4px solid #4CAF50;
+            margin-right: 20px;
+        }
+        
+        .message.system {
+            background: #fff3e0;
+            border-left: 4px solid #ff9800;
+            text-align: center;
+            font-style: italic;
+        }
+        
+        /* Image Preview */
+        #imagePreviewContainer {
+            background: #f5f5f5;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        #imagePreviewContainer.active {
+            display: block;
+        }
+        
+        #imagePreview {
+            max-width: 100%;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+        
+        /* Help text */
+        .help-text {
+            font-size: 14px;
+            color: #666;
+            margin-top: 10px;
+            text-align: center;
+        }
+        
+        /* API Key Section */
+        #apiKeySection {
+            background: #f5f5f5;
+            padding: 30px 25px;
+            border-radius: 12px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        
+        /* Main Interface */
+        #mainInterface {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: visible;
+        }
+        
+        #apiKeySection h2 {
+            font-size: 28px;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        
+        #apiKeyInput {
+            font-size: 16px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            width: 100%;
+            min-height: 44px;
+        }
+        
+        #saveApiKeyBtn {
+            background: #667eea;
+            color: white;
+            width: 100%;
+        }
+        
+        #saveApiKeyBtn:hover {
+            background: #5568d3;
+        }
+        
+        /* Breathing indicator */
+        .breathing-dot {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            background: #4CAF50;
+            border-radius: 50%;
+            animation: breathe 1.5s infinite;
+        }
+        
+        @keyframes breathe {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+        
+        .breathing-dot.active {
+            background: #ff5722;
+        }
+        
+        /* Scrollbar styling */
+        #transcriptMessages::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        #transcriptMessages::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        
+        #transcriptMessages::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        
+        #transcriptMessages::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
-        <!-- Chat Status Header -->
-        <div class="chat-status-header">
-            <div class="chat-status-container">
-                <div class="breathing-indicator" id="breathingIndicator">
-                    <div class="breathing-dot"></div>
-                </div>
-                <div class="status-content">
-                    <div class="status-text" id="statusText">Ready to chat</div>
-                    <div class="status-subtitle" id="statusSubtitle">Click to start live conversation with your browsing assistant</div>
-                </div>
-                <button id="chatActionBtn" class="chat-action-btn">
-                    <i class="fas fa-play" id="chatActionIcon"></i>
-                </button>
-            </div>
+        <!-- Header -->
+        <div class="header">
+            <h1>🤖 Your Web Helper</h1>
+            <p>I'm here to help you navigate and accomplish tasks online</p>
         </div>
-
-        <!-- API Key Setup (Hidden - using hardcoded key for testing) -->
-        <div id="apiKeySection" class="section" style="display: none;">
-            <h3><i class="fas fa-key"></i> Setup</h3>
-            <div class="input-group">
-                <input type="password" id="apiKeyInput" placeholder="Enter your Gemini API Key">
-                <button id="saveApiKeyBtn" class="btn btn-primary">
-                    <i class="fas fa-save"></i> Save
+        
+        <!-- Main Content -->
+        <div id="mainContent">
+            <!-- API Key Setup (Initially shown, hidden once key is saved) -->
+            <div id="apiKeySection" style="display: none;">
+                <h2>Let's Get Started</h2>
+                <p style="font-size: 18px; margin-bottom: 20px; color: #666;">
+                    To use this assistant, I need a special code (API Key) from Google.
+                </p>
+                <input 
+                    type="password" 
+                    id="apiKeyInput" 
+                    placeholder="Paste your API Key here"
+                    autocomplete="off"
+                >
+                <button id="saveApiKeyBtn" class="btn">
+                    <i class="fas fa-save"></i> Save and Start
                 </button>
+                <p class="help-text">
+                    Don't have one? Get it for free at 
+                    <a href="https://makersuite.google.com/app/apikey" target="_blank" style="color: #667eea;">
+                        makersuite.google.com
+                    </a>
+                </p>
             </div>
-            <p class="help-text">
-                Get your API key from <a href="https://makersuite.google.com/app/apikey" target="_blank">Google AI Studio</a>
-            </p>
-        </div>
-
-        <!-- Main Interface -->
-        <div id="mainInterface" class="section" style="display: none;">
-            <!-- Hidden original buttons (functionality moved to header) -->
-            <div style="display: none;">
-                <button id="startLiveChatBtn"></button>
-                <button id="stopLiveChatBtn"></button>
-            </div>
-
-            <!-- Image Preview -->
-            <div id="imagePreviewContainer" class="image-preview" style="display: none;">
-                <div class="image-header">
-                    <span>Current Screen</span>
-                    <button id="removeImageBtn" class="btn-icon">
-                        <i class="fas fa-times"></i>
+            
+            <!-- Main Interface (Hidden until API key is set) -->
+            <div id="mainInterface" style="display: none;">
+                <!-- Status Display -->
+                <div id="statusSection" style="background: #f5f5f5; border-radius: 12px; padding: 20px; margin-bottom: 20px; text-align: center; border-left: 5px solid #667eea; width: calc(100% - 40px);">
+                    <div id="statusText" style="font-size: 24px; font-weight: 600; color: #333; margin-bottom: 10px;">Ready to help</div>
+                    <div id="statusSubtitle" style="font-size: 16px; color: #666; line-height: 1.6;">Click the button below or speak to tell me what you need</div>
+                </div>
+                
+                <!-- Instructions -->
+                <div class="instructions">
+                    <h3>📋 How to Use:</h3>
+                    <ul>
+                        <li>Click the <strong>Start Listening</strong> button</li>
+                        <li>Simply tell me what you want to do (e.g., "Send an email", "Search for something")</li>
+                        <li>I'll guide you through each step</li>
+                        <li>I can also simplify the website to make it easier to use</li>
+                    </ul>
+                </div>
+                
+                <!-- Control Buttons -->
+                <div class="button-group">
+                    <button id="startBtn">
+                        <i class="fas fa-microphone"></i> Start Listening
+                    </button>
+                    <button id="stopBtn" style="display: none;">
+                        <i class="fas fa-stop"></i> Stop
                     </button>
                 </div>
-                <img id="imagePreview" alt="Screen capture">
-            </div>
-
-
-
-            <!-- Hidden audio visualizer (moved to breathing indicator) -->
-            <div style="display: none;">
-                <div id="audioLevelFill"></div>
-                <div id="audioLevelText"></div>
-                <canvas id="audioWaveform"></canvas>
-            </div>
-
-            <!-- Transcript Section -->
-            <div class="transcript-section">
-                <h3><i class="fas fa-closed-captioning"></i> Live Transcript</h3>
-                <div id="transcriptMessages" class="transcript-messages">
-                    <div class="transcript-info">
-                        <i class="fas fa-info-circle"></i>
-                        <span>Real-time transcription of your voice and AI responses will appear here during live chat.</span>
+                
+                <!-- Image Preview -->
+                <div id="imagePreviewContainer" style="display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <span style="font-weight: 600; font-size: 16px;">Current Screen:</span>
+                        <button id="removeImageBtn" style="background: #f44336; padding: 8px 12px; font-size: 14px; min-height: auto;">
+                            <i class="fas fa-times"></i> Remove
+                        </button>
+                    </div>
+                    <img id="imagePreview" alt="Screen capture" style="width: 100%; border-radius: 8px;">
+                </div>
+                
+                <!-- Transcript Section -->
+                <div class="transcript-section">
+                    <h3><i class="fas fa-comments"></i> Conversation:</h3>
+                    <div id="transcriptMessages" style="display: none;">
+                        <div style="text-align: center; color: #999; font-style: italic;">
+                            Our conversation will appear here...
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- Hidden elements for compatibility -->
+    <div style="display: none;">
+        <button id="startLiveChatBtn"></button>
+        <button id="stopLiveChatBtn"></button>
+        <button id="chatActionBtn"></button>
+        <div id="breathingIndicator"></div>
+        <div id="audioLevelFill"></div>
+        <div id="audioLevelText"></div>
+        <canvas id="audioWaveform"></canvas>
     </div>
 
     <script type="module" src="sidepanel.js"></script>
