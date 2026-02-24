@@ -1,0 +1,30 @@
+/**
+ * Encoding utilities for converting between ArrayBuffer and Base64
+ */
+
+// Helper function to encode ArrayBuffer to Base64
+function arrayBufferToBase64(buffer) {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return window.btoa(binary);
+}
+
+// Helper function to decode Base64 to ArrayBuffer
+function base64ToArrayBuffer(base64) {
+  const binaryString = window.atob(base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
+
+// Export for both module and non-module contexts
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { arrayBufferToBase64, base64ToArrayBuffer };
+}

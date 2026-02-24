@@ -44,13 +44,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
   
   else if (request.action === "requestMicrophonePermission") {
-    // Handle microphone permission request via iframe injection
+    // Handle microphone permission request via popup window
     handleMicrophonePermissionRequest(sender, sendResponse);
     return true; // Keep message channel open for async response
   }
   
+  else if (request.type === "MICROPHONE_PERMISSION_RESULT") {
+    // Handle result from permission.html popup
+    handleMicrophonePermissionResult(request, sender, sendResponse);
+    return true;
+  }
+  
   else if (request.action === "microphonePermissionResult") {
-    // Handle result from microphone permission iframe
+    // Handle result from microphone permission iframe (legacy)
     handleMicrophonePermissionResult(request, sender, sendResponse);
     return true;
   }
@@ -507,56 +513,41 @@ async function handleScreenshotCapture(sender, sendResponse) {
   }
 }
 
-// Handle microphone permission request via iframe injection
+// Handle microphone permission request via extension page
 async function handleMicrophonePermissionRequest(sender, sendResponse) {
   try {
-    console.log("[handleMicrophonePermissionRequest] Starting microphone permission request...");
+    console.log("[handleMicrophonePermissionRequest] Requesting microphone permission from extension page...");
     
-    // Get the active tab
-    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tabs || tabs.length === 0) {
-      throw new Error("No active tab found");
-    }
+    // Always open the permission popup when requested
+    // Don't check storage flag - let the browser handle the actual permission state
     
-    const activeTab = tabs[0];
-    console.log(`[handleMicrophonePermissionRequest] Active tab: ${activeTab.id}, URL: ${activeTab.url}`);
+    // Verify extension URL is correct
+    const permUrl = chrome.runtime.getURL('permission.html');
+    console.log("[handleMicrophonePermissionRequest] Permission URL:", permUrl);
     
-    // Check if the tab URL is compatible with content scripts
-    if (!isTabCapturable(activeTab.url)) {
-      throw new Error("Cannot request microphone permission on this page. Please navigate to a regular website (not chrome:// pages) and try again.");
-    }
-    
-    // First, try to ping the content script to see if it's available
-    try {
-      await chrome.tabs.sendMessage(activeTab.id, { action: 'ping' });
-      console.log("[handleMicrophonePermissionRequest] Content script is available");
-    } catch (pingError) {
-      console.log("[handleMicrophonePermissionRequest] Content script not available, trying to inject...");
-      
-      // Try to inject the content script
-      try {
-        await chrome.scripting.executeScript({
-          target: { tabId: activeTab.id },
-          files: ['content.js']
-        });
-        console.log("[handleMicrophonePermissionRequest] Content script injected");
-        
-        // Wait a moment for the script to initialize
-        await new Promise(resolve => setTimeout(resolve, 100));
-      } catch (injectError) {
-        throw new Error("Cannot inject content script on this page. Please navigate to a regular website and try again.");
-      }
-    }
-    
-    // Now try to inject the microphone permission iframe
-    const response = await chrome.tabs.sendMessage(activeTab.id, {
-      action: 'injectMicrophoneIframe'
+    // Open permission.html as a focused popup window
+    const permissionWindow = await chrome.windows.create({
+      url: permUrl,
+      type: 'popup',
+      width: 700,
+      height: 650,
+      focused: true
     });
     
-    console.log("[handleMicrophonePermissionRequest] Iframe injection response:", response);
+    console.log("[handleMicrophonePermissionRequest] Opened permission window:", {
+      id: permissionWindow.id,
+      focused: permissionWindow.focused,
+      state: permissionWindow.state
+    });
     
-    // Store the sendResponse function to call it later when we get the result
-    microphonePermissionCallbacks.set(activeTab.id, sendResponse);
+    // Store the sendResponse callback for later use
+    const callbackKey = `permission_${permissionWindow.id}`;
+    microphonePermissionCallbacks.set(callbackKey, sendResponse);
+    
+    // Also store a primary callback in case the window ID isn't passed back
+    microphonePermissionCallbacks.set('primary', sendResponse);
+    
+    console.log("[handleMicrophonePermissionRequest] Callback stored with keys:", callbackKey, "and primary");
     
   } catch (error) {
     console.error("[handleMicrophonePermissionRequest] Error:", error);
@@ -567,22 +558,43 @@ async function handleMicrophonePermissionRequest(sender, sendResponse) {
   }
 }
 
-// Handle result from microphone permission iframe
+// Handle result from microphone permission popup
 function handleMicrophonePermissionResult(request, sender, sendResponse) {
   console.log("[handleMicrophonePermissionResult] Received result:", request);
   
-  // Find the stored callback for this tab
-  const callback = microphonePermissionCallbacks.get(sender.tab.id);
-  if (callback) {
-    // Call the original sendResponse with the result
-    callback({
-      success: request.success,
-      message: request.message,
-      error: request.error
-    });
+  // Try to find and call the stored callback
+  if (microphonePermissionCallbacks.size > 0) {
+    // First try the primary callback
+    let callback = microphonePermissionCallbacks.get('primary');
+    let callbackKey = 'primary';
     
-    // Clean up the stored callback
-    microphonePermissionCallbacks.delete(sender.tab.id);
+    // If no primary, get the first available callback
+    if (!callback) {
+      const entries = microphonePermissionCallbacks.entries();
+      const firstEntry = entries.next().value;
+      if (firstEntry) {
+        [callbackKey, callback] = firstEntry;
+      }
+    }
+    
+    if (callback) {
+      console.log("[handleMicrophonePermissionResult] Calling stored callback with key:", callbackKey);
+      
+      // Call the original sendResponse with the result
+      callback({
+        success: request.success,
+        message: request.message,
+        error: request.error
+      });
+      
+      // Clean up all stored callbacks
+      microphonePermissionCallbacks.clear();
+      console.log("[handleMicrophonePermissionResult] Callbacks cleared");
+    } else {
+      console.warn("[handleMicrophonePermissionResult] No callback found!");
+    }
+  } else {
+    console.warn("[handleMicrophonePermissionResult] No pending callbacks");
   }
   
   sendResponse({ received: true });
@@ -590,6 +602,38 @@ function handleMicrophonePermissionResult(request, sender, sendResponse) {
 
 // Store microphone permission callbacks
 let microphonePermissionCallbacks = new Map();
+
+// Listen for window close events to handle permission popup dismissal
+chrome.windows.onRemoved.addListener((windowId) => {
+  console.log("[chrome.windows.onRemoved] Window closed:", windowId);
+  
+  // Check if this is a permission window
+  const callbackKey = `permission_${windowId}`;
+  const callback = microphonePermissionCallbacks.get(callbackKey);
+  
+  if (callback) {
+    console.log("[chrome.windows.onRemoved] Permission window was closed");
+    
+    // The popup was closed - if permission was granted, we would have already
+    // received a MICROPHONE_PERMISSION_RESULT message and called the callback
+    // If we're here without having called the callback, permission was denied
+    
+    // Only notify if callback hasn't been called yet
+    const callbackSent = microphonePermissionCallbacks.has(callbackKey);
+    
+    if (callbackSent) {
+      console.log("[chrome.windows.onRemoved] Callback already sent, skipping");
+    } else {
+      console.log("[chrome.windows.onRemoved] No callback received, permission was denied");
+      callback({
+        success: false,
+        error: 'Permission request was dismissed'
+      });
+      
+      microphonePermissionCallbacks.delete(callbackKey);
+    }
+  }
+});
 
 // Handle session management for Gemini Live
 let geminiSessions = new Map(); // Store sessions by tab ID

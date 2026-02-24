@@ -3,12 +3,12 @@ console.log("Content script loaded on:", window.location.href);
 
 function createSidePanelButton() {
     // Avoid creating multiple buttons if script is injected multiple times (e.g., on navigation)
-    if (document.getElementById('yeyulab-chat-toggle')) {
+    if (document.getElementById('web-assistant-toggle')) {
         return;
     }
 
     const button = document.createElement('button');
-    button.id = 'yeyulab-chat-toggle';
+    button.id = 'web-assistant-toggle';
     button.innerHTML = `
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -40,8 +40,8 @@ function createSidePanelButton() {
     });
 
     // Add accessibility attributes
-    button.title = 'Open Yeyulab Chat';
-    button.setAttribute('aria-label', 'Toggle Yeyulab Chat Assistant');
+    button.title = 'Open Web Assistant';
+    button.setAttribute('aria-label', 'Toggle Web Assistant');
     button.setAttribute('role', 'button');
     button.setAttribute('tabindex', '0');
 
@@ -124,9 +124,9 @@ function createSidePanelButton() {
     });
 
     // Add CSS animation for ripple effect and responsive design
-    if (!document.getElementById('yeyulab-chat-styles')) {
+    if (!document.getElementById('web-assistant-styles')) {
         const style = document.createElement('style');
-        style.id = 'yeyulab-chat-styles';
+        style.id = 'web-assistant-styles';
         style.textContent = `
             @keyframes ripple {
                 to {
@@ -135,7 +135,7 @@ function createSidePanelButton() {
                 }
             }
             
-            #yeyulab-chat-toggle {
+            #web-assistant-toggle {
                 position: relative;
                 overflow: hidden;
                 user-select: none;
@@ -144,13 +144,13 @@ function createSidePanelButton() {
                 -ms-user-select: none;
             }
             
-            #yeyulab-chat-toggle:active {
+            #web-assistant-toggle:active {
                 transform: translateY(-50%) scale(0.95) !important;
             }
             
             /* Responsive positioning - keep centered vertically */
             @media (max-width: 768px) {
-                #yeyulab-chat-toggle {
+                #web-assistant-toggle {
                     top: 50% !important;
                     right: 16px !important;
                     width: 56px !important;
@@ -160,7 +160,7 @@ function createSidePanelButton() {
             }
             
             @media (max-width: 480px) {
-                #yeyulab-chat-toggle {
+                #web-assistant-toggle {
                     top: 50% !important;
                     right: 12px !important;
                     width: 52px !important;
@@ -168,14 +168,14 @@ function createSidePanelButton() {
                     transform: translateY(-50%) !important;
                 }
                 
-                #yeyulab-chat-toggle svg {
+                #web-assistant-toggle svg {
                     width: 20px !important;
                     height: 20px !important;
                 }
             }
             
             /* Ensure button stays above page content */
-            #yeyulab-chat-toggle {
+            #web-assistant-toggle {
                 isolation: isolate;
             }
         `;
@@ -183,12 +183,12 @@ function createSidePanelButton() {
     }
 
     document.body.appendChild(button);
-    console.log("Modern Yeyulab Chat toggle button injected into page.");
+    console.log("Modern Web Assistant toggle button injected into page.");
 }
 
 // Update toggle button visual state
 function updateToggleButtonState(isOpen) {
-    const button = document.getElementById('yeyulab-chat-toggle');
+    const button = document.getElementById('web-assistant-toggle');
     if (!button) return;
     
     if (isOpen) {
@@ -199,7 +199,7 @@ function updateToggleButtonState(isOpen) {
             </svg>
         `;
         button.style.background = 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)';
-        button.title = 'Close Yeyulab Chat';
+        button.title = 'Close Web Assistant';
     } else {
         // Side panel is closed - show chat icon
         button.innerHTML = `
@@ -208,7 +208,7 @@ function updateToggleButtonState(isOpen) {
             </svg>
         `;
         button.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-        button.title = 'Open Yeyulab Chat';
+        button.title = 'Open Web Assistant';
     }
 }
 
